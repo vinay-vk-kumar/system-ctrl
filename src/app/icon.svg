@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" rx="48" fill="#0d1117" stroke="#30363d" stroke-width="8"/>
+  <path d="M40 128 L88 128 L120 48 L152 208 L184 128 L216 128" fill="none" stroke="#00ff00" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Decorative Neon Terminal Dot -->
+  <circle cx="216" cy="128" r="10" fill="#00ff00" />
+</svg>

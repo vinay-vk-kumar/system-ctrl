@@ -1,65 +1,140 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState } from "react";
+import { StatCard } from "@/components/ui/StatCard";
+import { ChartCard } from "@/components/ui/ChartCard";
+import { TerminalBox } from "@/components/ui/TerminalBox";
+import { Activity, HardDrive, Cpu, Clock, Network } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+
+export default function DashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [sysRes, logRes] = await Promise.all([
+          fetch("/api/system"),
+          fetch("/api/logs?type=nginx")
+        ]);
+        const sys = await sysRes.json();
+        const lgs = await logRes.json();
+        
+        setData(sys);
+        
+        if (lgs.logs) {
+            setLogs(lgs.logs);
+        }
+
+        setHistory(prev => {
+          const newHistory = [...prev, {
+            time: new Date().toLocaleTimeString(),
+            cpu: parseFloat(sys.cpu?.usage || "0"),
+            memory: parseFloat(sys.memory?.usagePercent || "0")
+          }];
+          return newHistory.slice(-20); // Keep last 20 ticks
+        });
+      } catch (err) {
+        console.error("Fetch error", err);
+      }
+    };
+
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full">
+        <div className="text-neon-green/50 animate-pulse text-2xl tracking-widest uppercase">
+          Initializing System...
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="animate-in fade-in duration-500 min-h-full flex flex-col gap-6 pb-12">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-border pb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-green to-neon-cyan uppercase tracking-widest">
+            System Overview
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <p className="text-muted-foreground text-sm">Real-time health telemetry</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="flex items-center gap-4 text-sm bg-black/50 border border-border px-4 py-2 rounded-sm auto-pulse shadow-[0_0_10px_rgba(0,255,0,0.1)]">
+          <span className="text-muted-foreground">Status:</span>
+          <span className="text-neon-green font-bold animate-pulse">OK</span>
+          <span className="text-muted-foreground ml-4">Uptime:</span>
+          <span className="text-foreground">{(data.uptime / 3600).toFixed(2)}h</span>
         </div>
-      </main>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard 
+          title="CPU Usage" 
+          value={`${data.cpu.usage}%`} 
+          icon={Cpu} 
+          glowColor={parseFloat(data.cpu.usage) > 80 ? "red" : "cyan"} 
+          subValue={`${data.cpu.cores} Cores @ ${data.cpu.speed}GHz`}
+        />
+        <StatCard 
+          title="Memory Usage" 
+          value={`${data.memory.usagePercent}%`} 
+          icon={Activity} 
+          glowColor={parseFloat(data.memory.usagePercent) > 80 ? "red" : "purple"} 
+          subValue={`${(data.memory.used / 1024 / 1024 / 1024).toFixed(1)}GB / ${(data.memory.total / 1024 / 1024 / 1024).toFixed(1)}GB`}
+        />
+        <StatCard 
+          title="Disk Space" 
+          value={data.disk ? `${data.disk.usagePercent}%` : "N/A"} 
+          icon={HardDrive} 
+          glowColor="default" 
+          subValue={data.disk ? `Free: ${(data.disk.free / 1024 / 1024 / 1024).toFixed(1)}GB` : ""}
+        />
+        <StatCard 
+          title="Network (rx/tx)" 
+          value={data.network ? `${(data.network.rx_sec / 1024).toFixed(1)} KB/s` : "N/A"} 
+          icon={Network} 
+          glowColor="green" 
+          subValue={data.network ? `${(data.network.tx_sec / 1024).toFixed(1)} KB/s out` : ""}
+        />
+      </div>
+
+      {/* Charts & Logs Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+        <div className="lg:col-span-2 flex flex-col gap-6">
+          <ChartCard title="Resource History (CPU & Memory)">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={history}>
+                <XAxis dataKey="time" stroke="#30363d" tick={{fill: '#8b949e', fontSize: 10}} />
+                <YAxis stroke="#30363d" tick={{fill: '#8b949e', fontSize: 10}} domain={[0, 100]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#0d1117', border: '1px solid #30363d', color: '#c9d1d9', borderRadius: '4px' }}
+                />
+                <Line type="monotone" dataKey="cpu" stroke="#00ffff" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="memory" stroke="#b026ff" strokeWidth={2} dot={false} isAnimationActive={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+          
+          <div className="grid grid-cols-2 gap-4">
+             <StatCard title="Load Avg (1m)" value={data.load.avg1} glowColor="default" />
+             <StatCard title="Platform" value={data.cpu.manufacturer} subValue={data.cpu.brand} />
+          </div>
+        </div>
+        
+        <div className="h-full flex flex-col min-h-[300px]">
+          <TerminalBox title="Activity Feed" logs={logs} className="flex-1" />
+        </div>
+      </div>
+      
     </div>
   );
 }

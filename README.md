@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Server Health Monitoring Dashboard
 
-## Getting Started
+A highly polished, developer-centric server monitoring dashboard built with Next.js (App Router), Tailwind CSS v4, and Shadcn UI. It features a dark cyberpunk aesthetic mimicking advanced Linux terminals and IDE environments.
 
-First, run the development server:
+## Features
+
+- **Real-Time Telemetry**: Tracks CPU, Memory, Disk, Uptime, and Network stats locally using `systeminformation`.
+- **PM2 Integration**: View active `pm2` processes, telemetry, and live out/error logs directly in the browser via native programmatic APIs.
+- **Nginx Monitoring**: Keep track of dynamic Nginx connections.
+- **Dynamic Ping Registry**: Ping and monitor multiple external services (e.g. `*.codewithvin.app`) and visualize HTTP response times directly.
+- **Cyberpunk Terminal UI**: Features glowing neon graphs, hardware-accelerated transitions, and a customized Web Terminal component with live log streaming.
+
+## Installation
+
+```bash
+npm install
+```
+
+### Environment Variables
+
+If you wish to utilize the remote PM2 Restart functionality, you must set an authorization key.
+Create a `.env` file at the root of the project:
+
+```env
+RESTART_KEY="your-super-secret-key"
+```
+
+## Running the Application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+For production deployment:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm run start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## PM2 Features & Actions
 
-## Learn More
+On the **PM2 Processes** dashboard page, you can monitor and manage your local processes managed by PM2. 
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Available Actions:
+1. **View Logs**: Click the purple **Logs** button to open the Terminal Sidebar. This streams that specific process's tail logs (`~/.pm2/logs`) inside an intelligent, color-coded terminal viewer.
+2. **Restart Process**: Click the red **Restart** button to trigger a graceful restart of that PM2 ID. 
+   - *Note*: It will safely prompt you for the `RESTART_KEY`. You must enter the exact string you configured in your `.env` file, or the backend will reject the command as Unauthorized.
