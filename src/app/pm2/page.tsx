@@ -30,6 +30,12 @@ export default function PM2Page() {
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Modal State
+  const [restartModal, setRestartModal] = useState<{ id: number; name: string } | null>(null);
+  const [restartKey, setRestartKey] = useState("");
+  const [restartMsg, setRestartMsg] = useState("");
+  const [isRestarting, setIsRestarting] = useState(false);
+
   const fetchProcesses = async () => {
     try {
       const res = await fetch("/api/pm2");
@@ -65,21 +71,44 @@ export default function PM2Page() {
     }
   }, [selectedProcess]);
 
-  const handleRestart = async (id: number) => {
+  const handleRestartPrompt = (id: number, name: string) => {
+    setRestartModal({ id, name });
+    setRestartKey("");
+    setRestartMsg("");
+  };
+
+  const executeRestart = async () => {
+    if (!restartModal || !restartKey) {
+      setRestartMsg("Key cannot be empty.");
+      return;
+    }
+    
+    setIsRestarting(true);
+    setRestartMsg("Connecting to daemon...");
+
     try {
-      // Using a simple key handling
-      const key = prompt("Enter RESTART_KEY:");
-      if (!key) return;
-      await fetch("/api/pm2/action", {
+      const response = await fetch("/api/pm2/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, key })
+        body: JSON.stringify({ id: restartModal.id, key: restartKey })
       });
-      fetchProcesses();
+      const data = await response.json();
+
+      if (!response.ok) {
+        setRestartMsg(`Failed: ${data.error || "Invalid authentication key."}`);
+      } else {
+        setRestartMsg("Success! PM2 Process gracefully restarted.");
+        fetchProcesses();
+        setTimeout(() => {
+           setRestartModal(null);
+        }, 1500);
+      }
     } catch (e) {
-      console.error(e);
+      setRestartMsg("Failed to communicate with API.");
+    } finally {
+      setIsRestarting(false);
     }
-  }
+  };
 
   if (loading) {
     return <div className="text-neon-cyan animate-pulse">Scanning Processes...</div>;
@@ -87,6 +116,44 @@ export default function PM2Page() {
 
   return (
     <div className="h-full flex flex-col gap-6 animate-in fade-in duration-500">
+      {/* Restart Authorization Modal */}
+      {restartModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-card border border-border glow-border p-6 rounded-sm w-[90%] max-w-[400px] flex flex-col gap-4 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-neon-red shadow-[0_0_10px_#ff003c]" />
+            <h2 className="text-xl font-bold text-neon-red tracking-widest uppercase">Restart Process</h2>
+            <p className="text-sm text-muted-foreground">
+              Authorize the restart sequence for <strong className="text-foreground">{restartModal.name}</strong>.
+            </p>
+            <input 
+              type="password" 
+              className="bg-black border border-border p-2 mt-2 rounded-sm text-foreground font-mono focus:outline-none focus:border-neon-red transition-colors"
+              value={restartKey}
+              onChange={(e) => setRestartKey(e.target.value)}
+              placeholder="Enter RESTART_KEY..."
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && executeRestart()}
+            />
+            
+            <div className="h-6">
+              {restartMsg && (
+                <span className={`text-xs font-mono tracking-widest uppercase animate-pulse ${restartMsg.includes("Failed") || restartMsg.includes("empty") ? "text-neon-red" : "text-neon-green"}`}>
+                  {restartMsg}
+                </span>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-2">
+              <GlowButton variant="ghost" onClick={() => setRestartModal(null)} disabled={isRestarting}>
+                Abort
+              </GlowButton>
+              <GlowButton glowColor="red" onClick={executeRestart} disabled={isRestarting}>
+                {isRestarting ? "Executing..." : "Confirm Restart"}
+              </GlowButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neon-purple to-neon-cyan uppercase tracking-widest">
@@ -99,8 +166,9 @@ export default function PM2Page() {
 
         {/* Table Area */}
         <div className="lg:col-span-2 border border-border glow-border bg-black rounded-sm overflow-hidden flex flex-col">
-          <div className="p-4 bg-card/50 border-b border-border text-sm font-bold tracking-widest uppercase text-muted-foreground">
-            Active Instances
+          <div className="p-4 bg-card/50 border-b border-border text-sm font-bold tracking-widest uppercase text-muted-foreground flex justify-between items-center">
+            <span>Active Instances</span>
+            <span className="text-[10px] text-neon-cyan font-mono animate-pulse uppercase border border-neon-cyan/50 px-2 py-0.5 rounded-sm">Polling Active</span>
           </div>
           <div className="flex-1 overflow-auto">
             <Table>
@@ -136,7 +204,7 @@ export default function PM2Page() {
                     <TableCell className="text-right font-mono text-muted-foreground">{(p.uptime / 1000 / 60 / 60).toFixed(1)}h</TableCell>
                     <TableCell className="text-right space-x-2" onClick={e => e.stopPropagation()}>
                       <GlowButton glowColor="purple" size="xs" onClick={() => setSelectedProcess(p.name)}>Logs</GlowButton>
-                      <GlowButton glowColor="red" size="xs" onClick={() => handleRestart(p.id)}>Restart</GlowButton>
+                      <GlowButton glowColor="red" size="xs" onClick={() => handleRestartPrompt(p.id, p.name)}>Restart</GlowButton>
                     </TableCell>
                   </TableRow>
                 ))}
