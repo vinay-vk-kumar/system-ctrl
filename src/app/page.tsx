@@ -25,7 +25,7 @@ export default function DashboardPage() {
         setData(sys);
         
         if (lgs.logs) {
-            setLogs(lgs.logs);
+            setLogs(lgs.logs.slice(-20)); // Limit activity feed to 20 most recent logs
         }
 
         setHistory(prev => {

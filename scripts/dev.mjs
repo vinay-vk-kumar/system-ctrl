@@ -15,4 +15,5 @@ try {
 
 console.log(`\n\x1b[32m\x1b[1m[System_Ctrl] Booting dashboard telemetry on port ${port}...\x1b[0m\n`);
 
-spawn('npx', ['next', 'dev', '-p', port], { stdio: 'inherit', shell: true });
+const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+spawn(cmd, ['next', 'dev', '-p', port], { stdio: 'inherit', shell: false });
