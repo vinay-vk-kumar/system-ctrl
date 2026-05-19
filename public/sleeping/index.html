@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VM Offline — codewithvin.app</title>
+  <meta name="description"
+    content="EC2 server is sleeping to save credits. Request the developer to bring it back up." />
+  <!-- Favicon: moon SVG inline -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌙</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --green: #00ff88;
+      --cyan: #00e5ff;
+      --purple: #b026ff;
+      --yellow: #ffd60a;
+      --red: #ff003c;
+      --muted: #8b949e;
+      --fg: #c9d1d9;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      overflow-x: hidden;
+    }
+
+    /* Scanlines */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 200;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.04) 2px, rgba(0, 0, 0, 0.04) 4px);
+    }
+
+    /* Canvas bg */
+    #particles {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* Status bar */
+    .status-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0.55rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .brand {
+      color: var(--green);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      margin-right: 6px;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .15
+      }
+    }
+
+    /* Wrapper */
+    .wrapper {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6rem 1.5rem 4rem;
+      gap: 3rem;
+    }
+
+    /* ── Reveal animation ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal-delay-1 {
+      transition-delay: 0.1s;
+    }
+
+    .reveal-delay-2 {
+      transition-delay: 0.2s;
+    }
+
+    .reveal-delay-3 {
+      transition-delay: 0.35s;
+    }
+
+    /* Card */
+    .card {
+      background: rgba(22, 27, 34, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2.5rem;
+      max-width: 580px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(255, 0, 60, 0.07), 0 0 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Corner brackets */
+    .card::before,
+    .card::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-color: var(--red);
+      border-style: solid;
+    }
+
+    .card::before {
+      top: 0;
+      left: 0;
+      border-width: 2px 0 0 2px;
+    }
+
+    .card::after {
+      bottom: 0;
+      right: 0;
+      border-width: 0 2px 2px 0;
+    }
+
+    /* Moon icon */
+    .moon-wrap {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .moon {
+      font-size: 4.5rem;
+      display: inline-block;
+      animation: float 3.5s ease-in-out infinite;
+      filter: drop-shadow(0 0 24px rgba(176, 38, 255, 0.6));
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0)
+      }
+
+      50% {
+        transform: translateY(-12px)
+      }
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--red);
+      border: 1px solid rgba(255, 0, 60, 0.5);
+      padding: 3px 10px;
+      border-radius: 2px;
+      background: rgba(255, 0, 60, 0.08);
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, var(--fg) 0%, var(--muted) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glitch 6s ease-in-out infinite;
+    }
+
+    @keyframes glitch {
+
+      0%,
+      95%,
+      100% {
+        text-shadow: none
+      }
+
+      96% {
+        text-shadow: 2px 0 var(--red), -2px 0 var(--cyan)
+      }
+
+      97% {
+        text-shadow: none
+      }
+
+      98% {
+        text-shadow: -2px 0 var(--purple)
+      }
+
+      99% {
+        text-shadow: none
+      }
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.7;
+      margin-bottom: 2rem;
+    }
+
+    .subtitle span {
+      color: var(--cyan);
+    }
+
+    /* Services row */
+    .services {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.8rem;
+    }
+
+    .svc-chip {
+      font-size: 0.62rem;
+      padding: 3px 9px;
+      border-radius: 2px;
+      border: 1px solid rgba(255, 0, 60, 0.35);
+      background: rgba(255, 0, 60, 0.07);
+      color: var(--red);
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .svc-chip::before {
+      content: '●';
+      font-size: 0.5rem;
+    }
+
+    /* Terminal */
+    .terminal {
+      background: #080b10;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1rem 1.2rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      line-height: 1.9;
+      overflow: hidden;
+    }
+
+    .terminal .prompt {
+      color: var(--green);
+    }
+
+    .terminal .cmd {
+      color: var(--fg);
+    }
+
+    .terminal .err {
+      color: var(--red);
+    }
+
+    .terminal .info {
+      color: var(--cyan);
+    }
+
+    .terminal .line {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* Typewriter cursor */
+    .cursor {
+      display: inline-block;
+      width: 7px;
+      height: 0.85em;
+      background: var(--green);
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+      margin-left: 2px;
+    }
+
+    /* Divider */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 2rem;
+    }
+
+    .form-section-title {
+      font-size: 0.75rem;
+      color: var(--fg);
+      margin-bottom: 1.2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.67rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="email"],
+    input[type="text"],
+    textarea {
+      width: 100%;
+      background: #080b10;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      padding: 0.65rem 0.9rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.08);
+    }
+
+    textarea {
+      min-height: 85px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: transparent;
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--green);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .btn:hover::after {
+      opacity: 0.08;
+    }
+
+    .btn:hover {
+      box-shadow: 0 0 24px rgba(0, 255, 136, 0.3);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-text {
+      position: relative;
+      z-index: 1;
+    }
+
+    .success-msg {
+      display: none;
+      margin-top: 1rem;
+      text-align: center;
+      padding: 0.9rem;
+      background: rgba(0, 255, 136, 0.05);
+      border: 1px solid rgba(0, 255, 136, 0.25);
+      border-radius: 4px;
+      color: var(--green);
+      font-size: 0.78rem;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    /* Info chips section */
+    .info-row {
+      max-width: 580px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .info-chip {
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+
+    .info-chip .val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--cyan);
+      display: block;
+    }
+
+    .info-chip .lbl {
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* Footer */
+    .footer {
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footer a {
+      color: var(--cyan);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 1.5rem;
+      }
+
+      .info-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      h1 {
+        font-size: 1.3rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <canvas id="particles"></canvas>
+
+  <div class="status-bar">
+    <a href="https://codewithvin.app" target="_blank">
+      <span class="brand">// codewithvin.app</span>
+    </a>
+    <span><span class="pulse-dot"></span>EC2 OFFLINE</span>
+    <span id="clock">--:--:-- UTC</span>
+  </div>
+
+  <div class="wrapper">
+
+    <!-- Main card -->
+    <div class="card reveal">
+
+      <div class="moon-wrap"><span class="moon">🌙</span></div>
+
+      <div class="badge"><span class="pulse-dot"></span>INSTANCE OFFLINE</div>
+
+      <h1>The VM is Sleeping</h1>
+
+      <p class="subtitle">
+        The <span>EC2 instance</span> is powered down to save cloud credits.
+        This services is temporarily unavailable.
+        Fill the form below and the developer will bring it back online.
+      </p>
+
+      <!-- Terminal block -->
+      <div class="terminal" id="terminal">
+        <div class="line"><span class="prompt">$ </span><span class="cmd" id="t1"></span></div>
+        <div class="line" id="t2-wrap" style="display:none"><span class="err" id="t2"></span></div>
+        <div class="line" id="t3-wrap" style="display:none"><span class="info" id="t3"></span></div>
+        <div class="line" id="t4-wrap" style="display:none; margin-top:0.4rem"><span class="prompt">$ </span><span
+            class="cmd" id="t4"></span></div>
+        <div class="line" id="t5-wrap" style="display:none"><span class="err" id="t5"></span></div>
+        <div class="line" id="t6-wrap" style="display:none"><span class="err" id="t6"></span></div>
+        <span class="cursor" id="cur"></span>
+      </div>
+
+      <hr />
+
+      <p class="form-section-title">📬 Request a Wake-Up</p>
+
+      <form id="wakeup-form">
+        <div class="form-group">
+          <label class="form-label" for="email">Your Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="name">Name </label>
+          <input type="text" id="name" name="name" placeholder="Your name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="message">Reason </label>
+          <textarea id="message" name="message"
+            placeholder="e.g. Want to check the system health dashboard, exploring this project etc."></textarea>
+        </div>
+        <button type="submit" class="btn"><span class="btn-text">⚡ Send Wake-Up Request</span></button>
+        <div class="success-msg" id="success-msg">
+          ✅ Request sent! Vinay will be notified and bring the VM online shortly.
+        </div>
+      </form>
+
+    </div>
+
+    <div class="footer reveal">
+      <p>All services run on a personal EC2 VM · Powered down to save credits</p>
+      <p style="margin-top:0.5rem">
+        <a href="https://github.com/vinay-vk-kumar" target="_blank">@vinay-vk-kumar</a>
+        &nbsp;·&nbsp;
+        <a href="mailto:omrajputkumar@gmail.com">omrajputkumar@gmail.com</a>
+        &nbsp;·&nbsp;
+        <a href="https://codewithvin.app" target="_blank">codewithvin.app</a>
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Clock ──────────────────────────────────────────────
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent =
+        now.toUTCString().slice(17, 25) + ' UTC';
+    }
+    updateClock(); setInterval(updateClock, 1000);
+
+    // ── Scroll reveal ──────────────────────────────────────
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ── Particle canvas ────────────────────────────────────
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let W, H, dots = [];
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize(); window.addEventListener('resize', resize);
+
+    function randRange(a, b) { return a + Math.random() * (b - a); }
+
+    for (let i = 0; i < 80; i++) {
+      dots.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: randRange(-0.15, 0.15),
+        vy: randRange(-0.15, 0.15),
+        r: randRange(1, 2.5),
+        alpha: randRange(0.2, 0.7)
+      });
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, W, H);
+      dots.forEach(d => {
+        d.x += d.vx; d.y += d.vy;
+        if (d.x < 0) d.x = W; if (d.x > W) d.x = 0;
+        if (d.y < 0) d.y = H; if (d.y > H) d.y = 0;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0,229,255,${d.alpha})`;
+        ctx.fill();
+      });
+      // Draw connections
+      for (let i = 0; i < dots.length; i++) {
+        for (let j = i + 1; j < dots.length; j++) {
+          const dx = dots[i].x - dots[j].x, dy = dots[i].y - dots[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 110) {
+            ctx.beginPath();
+            ctx.moveTo(dots[i].x, dots[i].y);
+            ctx.lineTo(dots[j].x, dots[j].y);
+            ctx.strokeStyle = `rgba(0,229,255,${0.12 * (1 - dist / 110)})`;
+            ctx.lineWidth = 0.6;
+            ctx.stroke();
+          }
+        }
+      }
+      requestAnimationFrame(drawParticles);
+    }
+    drawParticles();
+
+    // ── Typewriter terminal ────────────────────────────────
+    const lines = [
+      { id: 't1', wrap: null, text: 'systemctl status ec2-instance' },
+      { id: 't2', wrap: 't2-wrap', text: '● ec2.service — FAILED' },
+      { id: 't3', wrap: 't3-wrap', text: '   State: stopped (saving credits 💸)' },
+      { id: 't4', wrap: 't4-wrap', text: 'ping healthcheck.codewithvin.app' },
+      { id: 't5', wrap: 't5-wrap', text: 'Request timeout for icmp_seq 0' },
+      { id: 't6', wrap: 't6-wrap', text: 'Request timeout for icmp_seq 1' },
+    ];
+
+    let li = 0, ci = 0;
+    const cur = document.getElementById('cur');
+
+    function typeNext() {
+      if (li >= lines.length) { cur.style.display = 'none'; return; }
+      const { id, wrap, text } = lines[li];
+      if (wrap) document.getElementById(wrap).style.display = 'flex';
+      const el = document.getElementById(id);
+      if (ci < text.length) {
+        el.textContent += text[ci++];
+        setTimeout(typeNext, 28);
+      } else {
+        li++; ci = 0;
+        setTimeout(typeNext, 380);
+      }
+    }
+    // Start typewriter after card reveals
+    setTimeout(typeNext, 900);
+
+    // ── Formspree config — replace with your form ID after signup ──
+    const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xgoqvpbg';
+
+    // ── Form → Formspree AJAX ────────────────────────────
+    const form = document.getElementById('wakeup-form');
+    const successMsg = document.getElementById('success-msg');
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = form.querySelector('.btn');
+      const btnText = btn.querySelector('.btn-text');
+
+      // Loading state
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btnText.textContent = '⏳ Sending...';
+
+      try {
+        const res = await fetch(FORMSPREE_ENDPOINT, {
+          method: 'POST',
+          body: new FormData(form),
+          headers: { Accept: 'application/json' }
+        });
+
+        if (res.ok) {
+          form.reset();
+          successMsg.style.display = 'block';
+          btnText.textContent = '✅ Request Sent!';
+        } else {
+          const data = await res.json();
+          throw new Error(data?.errors?.[0]?.message || 'Server error');
+        }
+      } catch (err) {
+        console.error('Formspree error:', err);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btnText.textContent = '⚡ Send Wake-Up Request';
+        alert('Could not send. Please email omrajputkumar@gmail.com directly.');
+      }
+    });
+  </script>
+</body>
+
+</html>
