@@ -12,6 +12,7 @@ const DOMAINS_TO_MONITOR = [
   { name: "VeggieMap App", subdomain: "veggiemap" },
   { name: "forge todo", subdomain: "todo" },
   { name: "Brainly App", subdomain: "brainly" },
+  { name: "WebPull", subdomain: "webpull" },
   // { name: "Admin Portal", subdomain: "admin" },
   // { name: "second brain", subdomain: "secondbrain" },
 ];
